@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="小脚印 AI Native 旅行助手 MVP Demo"
+    />
+    <title>小脚印 - AI 旅行搭子 MVP Demo</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23083b76'/%3E%3Cellipse cx='24' cy='38' rx='7' ry='11' fill='white' transform='rotate(-18 24 38)'/%3E%3Cellipse cx='40' cy='32' rx='7' ry='11' fill='white' transform='rotate(18 40 32)'/%3E%3Ccircle cx='18' cy='24' r='3.5' fill='white'/%3E%3Ccircle cx='25' cy='20' r='3.5' fill='white'/%3E%3Ccircle cx='34' cy='17' r='3.5' fill='white'/%3E%3Ccircle cx='43' cy='18' r='3.5' fill='white'/%3E%3Ccircle cx='50' cy='23' r='3.5' fill='white'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="demo-frame" aria-label="小脚印 MVP Demo">
+        <header class="app-header">
+          <div class="brand-lockup">
+            <span class="brand-mark" aria-label="小脚印 logo">
+              <span class="logo-foot" aria-hidden="true">👣</span>
+            </span>
+            <div>
+              <p>AI Travel Buddy</p>
+              <h1>小脚印</h1>
+            </div>
+          </div>
+          <button class="status-pill" id="modePill" type="button">
+            演示模式
+          </button>
+        </header>
+
+        <section class="hero-panel">
+          <div class="hero-copy">
+            <span>杭州周末 solo trip</span>
+            <h2>懂你的旅行搭子</h2>
+            <p>规划、陪伴、打卡、小水坑和回忆，串成一条自己的脚印。</p>
+          </div>
+          <div class="map-visual" aria-hidden="true">
+            <div class="hero-photo">
+              <img src="./assets/west-lake-hero.png" alt="" />
+            </div>
+            <div class="route-card">
+              <span>👣</span>
+              <strong>西湖边</strong>
+            </div>
+            <div class="hero-route-glow" aria-hidden="true">
+              <span class="route-arc"></span>
+              <span class="route-node node-one"></span>
+              <span class="route-node node-two"></span>
+              <span class="route-node node-three"></span>
+            </div>
+            <div class="foot-trail" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </section>
+
+        <nav class="flow-tabs" aria-label="小脚印演示流程">
+          <button class="tab-button active" data-view="companion" type="button">
+            <span class="tab-icon" aria-hidden="true">👥</span>
+            搭子
+          </button>
+          <button class="tab-button" data-view="plan" type="button">
+            <span class="tab-icon" aria-hidden="true">📋</span>
+            行程
+          </button>
+          <button class="tab-button" data-view="nearby" type="button">
+            <span class="tab-icon" aria-hidden="true">🔎</span>
+            附近
+          </button>
+          <button class="tab-button" data-view="memory" type="button">
+            <span class="tab-icon" aria-hidden="true">🖼️</span>
+            回忆
+          </button>
+          <button class="tab-button" data-view="social" type="button">
+            <span class="tab-icon" aria-hidden="true">🧑‍🤝‍🧑</span>
+            同行
+          </button>
+        </nav>
+
+        <section class="view-panel active" id="companion" aria-live="polite">
+          <div class="section-title">
+            <h2>创建我的 AI 搭子</h2>
+            <p>用户调整风格和偏好，底层提示词保证稳定与安全。</p>
+          </div>
+
+          <div class="option-block">
+            <span class="field-label">搭子性格</span>
+            <div class="choice-grid" data-group="personality">
+              <button class="choice-chip active" type="button">温柔</button>
+              <button class="choice-chip" type="button">幽默</button>
+              <button class="choice-chip" type="button">理性</button>
+              <button class="choice-chip" type="button">活泼</button>
+            </div>
+          </div>
+
+          <div class="option-block">
+            <span class="field-label">旅行爱好</span>
+            <div class="choice-grid" data-group="interest">
+              <button class="choice-chip active" type="button">拍照</button>
+              <button class="choice-chip active" type="button">美食</button>
+              <button class="choice-chip" type="button">人文</button>
+              <button class="choice-chip active" type="button">小众街区</button>
+            </div>
+          </div>
+
+          <label class="input-card">
+            <span>旅行偏好</span>
+            <textarea id="preferenceInput">杭州周末 solo trip，想拍照、吃点本地小吃、逛小众街区，不想太累。</textarea>
+          </label>
+
+          <div class="range-card">
+            <span>松弛</span>
+            <input id="paceRange" type="range" min="1" max="5" value="2" />
+            <span>充实</span>
+          </div>
+
+          <button class="primary-button" id="createCompanion" type="button">
+            生成搭子卡
+          </button>
+
+          <article class="companion-card" id="companionCard">
+            <div class="card-topline">
+              <span class="mini-badge">已生成</span>
+              <span id="paceLabel">低强度路线</span>
+            </div>
+            <h3 id="companionTitle">松弛感城市漫游搭子</h3>
+            <p id="companionDesc">
+              我会少安排赶路，多留黄昏、街巷和临时起意的时间。
+            </p>
+          </article>
+        </section>
+
+        <section class="view-panel" id="plan" aria-live="polite">
+          <div class="section-title">
+            <h2>杭州 2 日 AI 行程</h2>
+            <p>默认模拟优先，有 API key 时可升级为真实 AI 生成。</p>
+          </div>
+
+          <button class="primary-button" id="generatePlan" type="button">
+            生成个性化行程
+          </button>
+
+          <div class="loading-card hidden" id="planLoading">
+            <span></span>
+            <p>小脚印正在压缩攻略噪音...</p>
+          </div>
+
+          <div class="timeline-list" id="timelineList"></div>
+        </section>
+
+        <section class="view-panel" id="nearby" aria-live="polite">
+          <div class="location-card">
+            <div>
+              <span>模拟定位</span>
+              <strong>杭州 · 西湖边</strong>
+            </div>
+            <select id="radiusSelect" aria-label="附近推荐范围">
+              <option value="500">500m</option>
+              <option value="1000">1000m</option>
+            </select>
+          </div>
+
+          <div class="nearby-grid" id="nearbyGrid"></div>
+
+          <article class="badge-unlock">
+            <div class="badge-medal" aria-hidden="true">印</div>
+            <div>
+              <span>足迹徽章</span>
+              <h3>西湖日落观察员</h3>
+              <p>把风和湖面，一起盖进今天的小脚印里。</p>
+            </div>
+            <button class="primary-button compact" id="checkIn" type="button">
+              打卡
+            </button>
+          </article>
+
+          <article class="music-card hidden" id="musicCard">
+            <div>
+              <span>此刻 BGM</span>
+              <h3>晚风慢慢听</h3>
+              <p>根据你的城市漫步偏好，为这次打卡推送一首轻松的湖边歌。</p>
+            </div>
+            <button class="secondary-button compact" type="button">跳转播放</button>
+          </article>
+        </section>
+
+        <section class="view-panel" id="memory" aria-live="polite">
+          <div class="section-title">
+            <h2>彩蛋、小水坑与回忆</h2>
+            <p>把美好和小意外都变成下次更懂你的线索。</p>
+          </div>
+
+          <label class="input-card">
+            <span>今天的小插曲</span>
+            <textarea id="pitfallInput">网红机位排队太久，照片里游客比湖还多。</textarea>
+          </label>
+
+          <div class="button-row">
+            <button class="secondary-button" id="saveEgg" type="button">
+              留彩蛋
+            </button>
+            <button class="primary-button" id="savePitfall" type="button">
+              生成小水坑
+            </button>
+          </div>
+
+          <article class="pitfall-card" id="pitfallCard">
+            <span class="mini-badge">小水坑</span>
+            <h3>排队耐心修炼者</h3>
+            <p>今天的小坑：为了网红机位排队 40 分钟，收获一张游客大合影。</p>
+          </article>
+
+          <article class="memory-summary">
+            <span>旅行回忆</span>
+            <h3>这次你更适合低强度城市漫步</h3>
+            <p id="memoryText">
+              已收集 0 枚徽章、0 条彩蛋、1 条小水坑。下次我会少安排高峰景点，多留一点随机探索时间。
+            </p>
+            <div class="memory-metrics">
+              <div><strong id="badgeCount">0</strong><span>徽章</span></div>
+              <div><strong id="eggCount">0</strong><span>彩蛋</span></div>
+              <div><strong id="bgmCount">0</strong><span>BGM</span></div>
+            </div>
+          </article>
+        </section>
+
+        <section class="view-panel" id="social" aria-live="polite">
+          <div class="section-title">
+            <h2>好友与旅游团</h2>
+            <p>把行程、徽章、彩蛋和小水坑分享给同行的人。</p>
+          </div>
+
+          <article class="group-card">
+            <div class="group-cover">
+              <span class="group-avatar">你</span>
+              <span class="group-avatar">林</span>
+              <span class="group-avatar">周</span>
+            </div>
+            <div>
+              <span class="mini-badge">旅游团</span>
+              <h3>杭州松弛漫游团</h3>
+              <p>3 位旅行者 · 共享行程、打卡进度和足迹 BGM。</p>
+            </div>
+          </article>
+
+          <div class="social-actions">
+            <button class="secondary-button" id="addFriend" type="button">
+              加好友
+            </button>
+            <button class="primary-button" id="createGroup" type="button">
+              建旅游团
+            </button>
+          </div>
+
+          <div class="share-panel">
+            <span class="field-label">分享到团里</span>
+            <div class="share-grid">
+              <button class="share-chip" data-share="行程" type="button">
+                <span>📋</span>
+                今日行程
+              </button>
+              <button class="share-chip" data-share="徽章" type="button">
+                <span>🏅</span>
+                足迹徽章
+              </button>
+              <button class="share-chip" data-share="BGM" type="button">
+                <span>🎧</span>
+                此刻 BGM
+              </button>
+              <button class="share-chip" data-share="小水坑" type="button">
+                <span>💧</span>
+                小水坑
+              </button>
+            </div>
+          </div>
+
+          <article class="chat-card" id="chatCard">
+            <span class="mini-badge">团内动态</span>
+            <div class="chat-line">
+              <strong>小脚印</strong>
+              <p>你可以把西湖黄昏路线分享给杭州松弛漫游团。</p>
+            </div>
+          </article>
+        </section>
+
+        <footer class="bottom-nav" aria-label="底部导航">
+          <button class="nav-button active" data-view="companion" type="button">
+            <span class="nav-icon" aria-hidden="true">👥</span>
+            搭子
+          </button>
+          <button class="nav-button" data-view="plan" type="button">
+            <span class="nav-icon" aria-hidden="true">📋</span>
+            行程
+          </button>
+          <button class="nav-button" data-view="nearby" type="button">
+            <span class="nav-icon" aria-hidden="true">🔎</span>
+            附近
+          </button>
+          <button class="nav-button" data-view="memory" type="button">
+            <span class="nav-icon" aria-hidden="true">🖼️</span>
+            回忆
+          </button>
+          <button class="nav-button" data-view="social" type="button">
+            <span class="nav-icon" aria-hidden="true">🧑‍🤝‍🧑</span>
+            同行
+          </button>
+        </footer>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
