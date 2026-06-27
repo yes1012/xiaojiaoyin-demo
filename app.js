@@ -8,28 +8,19 @@ const state = {
   checkedIn: false,
   friends: 2,
   groupCreated: true,
+  routeState: RouteModel.createInitialState(),
+  dragPointId: null,
+  pointSheetTrigger: null,
+  suppressPointClick: false,
 };
 
-const itinerary = [
-  {
-    time: "Day 1 · 15:40",
-    title: "西湖黄昏漫步",
-    body: "从曲院风荷慢慢走到北山街，预留拍照和坐下发呆的时间。",
-    icon: "🌅",
-  },
-  {
-    time: "Day 1 · 18:30",
-    title: "湖滨轻食晚餐",
-    body: "避开长队网红店，优先选步行 12 分钟内、评分稳定的小馆。",
-    icon: "🍜",
-  },
-  {
-    time: "Day 2 · 10:20",
-    title: "桥西历史街区",
-    body: "安排低强度城市漫游，顺手解锁一枚小众街区主题徽章。",
-    icon: "🚶",
-  },
-];
+const routeIconLabels = {
+  相机: "拍",
+  步行: "走",
+  人文: "访",
+  日落: "落",
+  晚餐: "食",
+};
 
 const nearbyData = {
   500: [
@@ -127,21 +118,289 @@ function renderNearby(radius = "500") {
     .join("");
 }
 
-function renderTimeline(items = itinerary) {
-  qs("#timelineList").innerHTML = items
-    .map(
-      (item) => `
-        <article>
-          <div class="timeline-icon" aria-hidden="true">${item.icon}</div>
-          <div>
-            <span>${item.time}</span>
-            <h3>${item.title}</h3>
-            <p>${item.body}</p>
-          </div>
-        </article>
-      `,
-    )
-    .join("");
+function getVisibleRoute() {
+  return state.routeState.preview?.route || state.routeState.route;
+}
+
+function renderTimeline(items = getVisibleRoute()) {
+  const list = qs("#timelineList");
+  if (!list) return;
+
+  const isPreview = Boolean(state.routeState.preview);
+  const entries = items.map((item) => {
+    const article = document.createElement("article");
+    article.classList.toggle("preview-route-item", isPreview);
+
+    const icon = document.createElement("div");
+    icon.className = "timeline-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = routeIconLabels[item.icon] || "点";
+
+    const content = document.createElement("div");
+    const time = document.createElement("span");
+    const title = document.createElement("h3");
+    const body = document.createElement("p");
+    time.textContent = `Day 1 · ${item.time}`;
+    title.textContent = item.title;
+    body.textContent = item.body;
+    content.append(time, title, body);
+    article.append(icon, content);
+    return article;
+  });
+
+  list.replaceChildren(...entries);
+}
+
+function renderRouteMap(route = getVisibleRoute()) {
+  const polyline = qs("#routePolyline");
+  const points = qs("#routePoints");
+  if (!polyline || !points) return;
+
+  polyline.setAttribute(
+    "points",
+    route.map((point) => `${point.x},${point.y}`).join(" "),
+  );
+
+  const markers = route.map((point, index) => {
+    const locked = state.routeState.lockedPointIds.includes(point.id);
+    const marker = document.createElement("button");
+    marker.type = "button";
+    marker.className = "route-marker";
+    marker.classList.toggle("locked", locked);
+    marker.dataset.pointId = point.id;
+    marker.style.setProperty("--point-x", `${point.x}%`);
+    marker.style.setProperty("--point-y", `${point.y}%`);
+    marker.setAttribute(
+      "aria-label",
+      `第 ${index + 1} 站，${point.title}，${point.time}${locked ? "，已锁定" : ""}`,
+    );
+
+    const number = document.createElement("span");
+    number.className = "marker-number";
+    number.textContent = String(index + 1);
+
+    const label = document.createElement("span");
+    label.className = "marker-label";
+    label.textContent = point.title;
+    marker.append(number, label);
+
+    if (locked) {
+      const lock = document.createElement("span");
+      lock.className = "marker-lock";
+      lock.setAttribute("aria-hidden", "true");
+      lock.textContent = "锁";
+      marker.append(lock);
+    }
+    return marker;
+  });
+
+  points.replaceChildren(...markers);
+}
+
+function renderRoutePreview() {
+  const previewPanel = qs("#routePreview");
+  if (!previewPanel) return;
+
+  const preview = state.routeState.preview;
+  previewPanel.classList.toggle("hidden", !preview);
+  if (!preview) return;
+
+  qs("#previewReason").textContent = preview.reason;
+  qs("#previewSummary").textContent = preview.summary;
+  qs("#previewTradeoff").textContent = `取舍：${preview.tradeoff}`;
+  const changes = preview.changes.map((change) => {
+    const item = document.createElement("li");
+    item.className = change.type;
+    item.textContent = change.label;
+    return item;
+  });
+  qs("#previewChanges").replaceChildren(...changes);
+}
+
+function renderRouteWorkspace() {
+  if (!qs("#routeWorkspace")) return;
+
+  const route = getVisibleRoute();
+  const statusCopy = {
+    preview: "预览中 · 尚未应用",
+    applied: "当前路线 · 已应用",
+    unchanged: "当前路线 · 无需调整",
+    locked: "当前路线 · 点位已锁定",
+  };
+  qs("#routeStatus").textContent = statusCopy[state.routeState.status] || "当前路线";
+  qs("#routeMapHint").textContent = state.routeState.preview
+    ? "地图和时间线正在展示预览，应用前不会改动当前路线"
+    : "点按查看详情，按住一个点并拖到另一点可调整顺序";
+
+  renderRouteMap(route);
+  renderTimeline(route);
+  renderRoutePreview();
+  qs("#routeUndo").classList.toggle("hidden", !state.routeState.previousRoute);
+
+  if (!qs("#pointSheet").classList.contains("hidden")) {
+    renderPointSheet();
+  }
+}
+
+function setRouteFeedback(message, tone = "") {
+  const feedback = qs("#routeFeedback");
+  feedback.textContent = message;
+  feedback.className = `route-feedback${tone ? ` ${tone}` : ""}`;
+}
+
+function previewRouteIntent(text) {
+  const nextRouteState = RouteModel.previewIntent(state.routeState, text);
+  state.routeState = nextRouteState;
+
+  if (nextRouteState.status === "invalid") {
+    setRouteFeedback("先写下你希望路线怎么调整。", "error");
+  } else if (nextRouteState.status === "unchanged") {
+    setRouteFeedback(
+      nextRouteState.message || "当前路线已经符合这项偏好，无需调整。",
+    );
+  } else if (nextRouteState.preview) {
+    setRouteFeedback("已生成路线预览，确认后才会应用。", "success");
+  }
+
+  renderRouteWorkspace();
+}
+
+function discardRoutePreview() {
+  state.routeState = {
+    ...state.routeState,
+    preview: null,
+    status: state.routeState.previousRoute ? "applied" : "idle",
+    message: null,
+  };
+  setRouteFeedback("已撤销预览，当前路线未改变。");
+  renderRouteWorkspace();
+}
+
+function applyRoutePreview() {
+  if (!state.routeState.preview) return;
+  state.routeState = RouteModel.applyPreview(state.routeState);
+  setRouteFeedback("路线已应用，可在下方撤销。", "success");
+  renderRouteWorkspace();
+}
+
+function undoAppliedRoute() {
+  const previousState = state.routeState;
+  state.routeState = RouteModel.undo(previousState);
+  if (state.routeState === previousState) return;
+  setRouteFeedback("已恢复上一版路线。");
+  renderRouteWorkspace();
+}
+
+function renderPointSheet() {
+  const pointId = state.routeState.selectedPointId;
+  const route = getVisibleRoute();
+  const pointIndex = route.findIndex((point) => point.id === pointId);
+  if (pointIndex < 0) return;
+
+  const point = route[pointIndex];
+  const insight = RouteModel.getCommunityInsight(pointId);
+  const locked = state.routeState.lockedPointIds.includes(pointId);
+  qs("#pointOrder").textContent = `第 ${pointIndex + 1} 站`;
+  qs("#pointSheetTitle").textContent = point.title;
+  qs("#pointTime").textContent = `Day 1 · ${point.time}`;
+  qs("#communityPercent").textContent = `${insight.percent}%`;
+  qs("#communitySample").textContent = `${insight.sampleSize} 条记录`;
+  qs("#pointRecommendation").textContent = insight.recommendation;
+  qs("#communitySimilarity").textContent = insight.similarity;
+  qs("#communitySetting").textContent =
+    pointId === "gushan" ? "当天最后一站 · 17:00 后抵达" : "保留点位 · 减少 15 分钟停留";
+  qs("#communityUncertainty").textContent = insight.uncertainty;
+
+  const lockButton = qs('[data-point-action="lock"]');
+  lockButton.textContent = locked ? "取消锁定" : "锁定点位";
+  lockButton.setAttribute("aria-pressed", String(locked));
+}
+
+function openPointSheet(pointId, trigger) {
+  if (!getVisibleRoute().some((point) => point.id === pointId)) return;
+  state.routeState = { ...state.routeState, selectedPointId: pointId };
+  state.pointSheetTrigger = trigger;
+  qs("#sheetFeedback").textContent = "";
+  qs("#sheetFeedback").className = "sheet-feedback";
+  qs("#sourceMessage").classList.add("hidden");
+  renderPointSheet();
+  qs("#pointSheetBackdrop").classList.remove("hidden");
+  qs("#pointSheet").classList.remove("hidden");
+  qs("#pointSheet").focus();
+}
+
+function closePointSheet() {
+  const pointId = state.routeState.selectedPointId;
+  qs("#pointSheetBackdrop").classList.add("hidden");
+  qs("#pointSheet").classList.add("hidden");
+  state.routeState = { ...state.routeState, selectedPointId: null };
+
+  const fallbackTrigger = pointId
+    ? qs(`.route-marker[data-point-id="${pointId}"]`)
+    : null;
+  const trigger = state.pointSheetTrigger?.isConnected
+    ? state.pointSheetTrigger
+    : fallbackTrigger;
+  state.pointSheetTrigger = null;
+  trigger?.focus();
+}
+
+function showSheetFeedback(message, tone = "") {
+  const feedback = qs("#sheetFeedback");
+  feedback.textContent = message;
+  feedback.className = `sheet-feedback${tone ? ` ${tone}` : ""}`;
+}
+
+function previewPointAction(action) {
+  const pointId = state.routeState.selectedPointId;
+  if (!pointId) return;
+
+  const currentState = state.routeState;
+  let nextState = currentState;
+  if (action === "replace") {
+    nextState = RouteModel.previewReplacePoint(currentState, pointId);
+  } else if (action === "remove") {
+    nextState = RouteModel.previewRemovePoint(currentState, pointId);
+  } else if (action === "adopt") {
+    nextState = RouteModel.previewCommunityChoice(currentState, pointId);
+  }
+
+  state.routeState = nextState;
+  if (nextState.status === "locked") {
+    renderRouteWorkspace();
+    showSheetFeedback("这个点位已锁定，先取消锁定再调整。", "error");
+    return;
+  }
+  if (nextState === currentState || !nextState.preview) {
+    showSheetFeedback(
+      action === "adopt"
+        ? "这个点暂无可采用的社区路线调整。"
+        : "当前路线无需执行这项调整。",
+    );
+    return;
+  }
+
+  closePointSheet();
+  setRouteFeedback("已生成路线预览，确认后才会应用。", "success");
+  renderRouteWorkspace();
+}
+
+function toggleSelectedPointLock() {
+  const pointId = state.routeState.selectedPointId;
+  if (!pointId) return;
+  const wasLocked = state.routeState.lockedPointIds.includes(pointId);
+  state.routeState = RouteModel.togglePointLock(state.routeState, pointId);
+  renderRouteWorkspace();
+  showSheetFeedback(wasLocked ? "已取消锁定。" : "已锁定，后续调整会保留这个点位。");
+}
+
+function previewMarkerReorder(sourceId, targetId) {
+  const currentState = state.routeState;
+  const nextState = RouteModel.previewReorder(currentState, sourceId, targetId);
+  if (nextState === currentState) return;
+  state.routeState = nextState;
+  setRouteFeedback("已预览新的点位顺序，应用前当前路线不会改变。", "success");
+  renderRouteWorkspace();
 }
 
 function updateMemory() {
@@ -175,12 +434,17 @@ function generateCompanion() {
 
 function generatePlan() {
   const loader = qs("#planLoading");
+  closePointSheet();
   loader.classList.remove("hidden");
+  qs("#routeWorkspace").classList.add("hidden");
   qs("#generatePlan").disabled = true;
 
   window.setTimeout(() => {
-    renderTimeline(itinerary);
+    state.routeState = RouteModel.createInitialState();
+    setRouteFeedback("");
+    renderRouteWorkspace();
     loader.classList.add("hidden");
+    qs("#routeWorkspace").classList.remove("hidden");
     qs("#generatePlan").disabled = false;
     qs("#modePill").textContent = "模拟 AI";
   }, 650);
@@ -212,11 +476,7 @@ function savePitfall() {
   const fallback = "网红机位排队太久，照片里游客比湖还多。";
   const source = text || fallback;
   state.pitfall += 1;
-  qs("#pitfallCard").innerHTML = `
-    <span class="mini-badge">小水坑</span>
-    <h3>排队耐心修炼者</h3>
-    <p>今天的小坑：${source} 小脚印已经记住，下次优先帮你避开高排队风险点。</p>
-  `;
+  qs("#pitfallCard p").textContent = `今天的小坑：${source} 小脚印已经记住，下次优先帮你避开高排队风险点。`;
   updateMemory();
 }
 
@@ -261,6 +521,63 @@ function shareToGroup(type) {
   `;
 }
 
+function handlePointSheetKeydown(event) {
+  const sheet = qs("#pointSheet");
+  if (sheet.classList.contains("hidden")) return;
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closePointSheet();
+    return;
+  }
+  if (event.key !== "Tab") return;
+
+  const focusable = qsa(
+    "#pointSheet button:not([disabled]), #pointSheet textarea:not([disabled]), #pointSheet [tabindex]:not([tabindex='-1'])",
+  );
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function clearMarkerDrag() {
+  state.dragPointId = null;
+  qsa("#routePoints .route-marker.is-dragging").forEach((marker) => {
+    marker.classList.remove("is-dragging");
+  });
+}
+
+function handleMarkerPointerDown(event) {
+  const marker = event.target.closest(".route-marker");
+  if (!marker || (event.button !== undefined && event.button !== 0)) return;
+  state.dragPointId = marker.dataset.pointId;
+  marker.classList.add("is-dragging");
+}
+
+function handleMarkerPointerUp(event) {
+  if (!state.dragPointId) return;
+  const sourceId = state.dragPointId;
+  const targetAtPointer = document.elementFromPoint(event.clientX, event.clientY);
+  const targetMarker = targetAtPointer?.closest(".route-marker");
+  const targetId = targetMarker?.dataset.pointId;
+  clearMarkerDrag();
+
+  if (!targetId || sourceId === targetId) return;
+  state.suppressPointClick = true;
+  previewMarkerReorder(sourceId, targetId);
+  window.setTimeout(() => {
+    state.suppressPointClick = false;
+  }, 0);
+}
+
 function bindEvents() {
   qsa(".tab-button, .nav-button").forEach((button) => {
     button.addEventListener("click", () => setView(button.dataset.view));
@@ -281,6 +598,54 @@ function bindEvents() {
 
   qs("#createCompanion").addEventListener("click", generateCompanion);
   qs("#generatePlan").addEventListener("click", generatePlan);
+  qs("#adjustRoute").addEventListener("click", () => {
+    previewRouteIntent(qs("#routeIntent").value);
+  });
+  qs(".intent-chips").addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-intent]");
+    if (!chip) return;
+    qs("#routeIntent").value = chip.dataset.intent;
+    previewRouteIntent(chip.dataset.intent);
+  });
+  qs("#discardPreview").addEventListener("click", discardRoutePreview);
+  qs("#refinePreview").addEventListener("click", () => {
+    setRouteFeedback("继续补充你的偏好，现有预览会保留到下一次调整。");
+    qs("#routeIntent").focus();
+  });
+  qs("#applyRoute").addEventListener("click", applyRoutePreview);
+  qs("#undoRoute").addEventListener("click", undoAppliedRoute);
+
+  const routePoints = qs("#routePoints");
+  routePoints.addEventListener("click", (event) => {
+    const marker = event.target.closest(".route-marker");
+    if (!marker || state.suppressPointClick) return;
+    openPointSheet(marker.dataset.pointId, marker);
+  });
+  routePoints.addEventListener("pointerdown", handleMarkerPointerDown);
+  routePoints.addEventListener("pointerup", handleMarkerPointerUp);
+  routePoints.addEventListener("pointercancel", clearMarkerDrag);
+
+  qs("#closePointSheet").addEventListener("click", closePointSheet);
+  qs("#pointSheetBackdrop").addEventListener("click", closePointSheet);
+  qs("#showSources").addEventListener("click", () => {
+    qs("#sourceMessage").classList.remove("hidden");
+  });
+  qs("#pointSheetActions").addEventListener("click", (event) => {
+    const actionButton = event.target.closest("[data-point-action]");
+    if (!actionButton) return;
+    if (actionButton.dataset.pointAction === "lock") {
+      toggleSelectedPointLock();
+      return;
+    }
+    previewPointAction(actionButton.dataset.pointAction);
+  });
+  document.addEventListener("keydown", handlePointSheetKeydown);
+  document.addEventListener("pointerup", (event) => {
+    if (state.dragPointId && !event.target.closest("#routePoints")) {
+      clearMarkerDrag();
+    }
+  });
+
   qs("#radiusSelect").addEventListener("change", (event) => renderNearby(event.target.value));
   qs("#checkIn").addEventListener("click", checkIn);
   qs("#saveEgg").addEventListener("click", saveEgg);
@@ -292,7 +657,7 @@ function bindEvents() {
   });
 }
 
-renderTimeline();
+renderRouteWorkspace();
 renderNearby("500");
 updateMemory();
 bindEvents();

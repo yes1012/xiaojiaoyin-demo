@@ -153,7 +153,101 @@
             <p>小脚印正在压缩攻略噪音...</p>
           </div>
 
-          <div class="timeline-list" id="timelineList"></div>
+          <div class="route-workspace hidden" id="routeWorkspace">
+            <div class="route-workspace-head">
+              <div>
+                <span>Day 1 · 杭州</span>
+                <strong id="routeStatus">当前路线</strong>
+              </div>
+              <span class="demo-data-label">Demo 模拟数据</span>
+            </div>
+
+            <section class="route-map" aria-label="杭州 Day 1 路线地图">
+              <div class="map-land land-west" aria-hidden="true"></div>
+              <div class="map-land land-east" aria-hidden="true"></div>
+              <div class="map-water" aria-hidden="true"></div>
+              <span class="map-road road-one" aria-hidden="true"></span>
+              <span class="map-road road-two" aria-hidden="true"></span>
+              <span class="map-caption map-caption-lake" aria-hidden="true">西湖</span>
+              <span class="map-caption map-caption-city" aria-hidden="true">杭州</span>
+              <svg
+                class="route-line"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <polyline id="routePolyline" points=""></polyline>
+              </svg>
+              <div class="route-points" id="routePoints"></div>
+              <p class="route-map-hint" id="routeMapHint">
+                点按查看详情，按住一个点并拖到另一点可调整顺序
+              </p>
+            </section>
+
+            <section class="intent-composer" aria-labelledby="intentComposerTitle">
+              <div class="composer-heading">
+                <div>
+                  <span>AI 路线协作</span>
+                  <h3 id="intentComposerTitle">告诉我你想怎么走</h3>
+                </div>
+                <span aria-hidden="true">AI</span>
+              </div>
+              <label for="routeIntent">微调意图</label>
+              <textarea id="routeIntent">下午不想太赶，想多看日落，再找一家不用排队的杭帮菜。</textarea>
+              <div class="intent-chips" aria-label="快捷微调">
+                <button type="button" data-intent="少走一点">少走一点</button>
+                <button type="button" data-intent="更松弛">更松弛</button>
+                <button type="button" data-intent="适合拍照">适合拍照</button>
+              </div>
+              <p class="route-feedback" id="routeFeedback" role="status"></p>
+              <button class="primary-button" id="adjustRoute" type="button">
+                调整路线
+              </button>
+            </section>
+
+            <section
+              class="route-preview hidden"
+              id="routePreview"
+              aria-labelledby="routePreviewTitle"
+            >
+              <div class="preview-heading">
+                <div>
+                  <span>尚未应用</span>
+                  <h3 id="routePreviewTitle">路线调整预览</h3>
+                </div>
+                <span>对比中</span>
+              </div>
+              <p class="preview-reason" id="previewReason"></p>
+              <p class="preview-summary" id="previewSummary"></p>
+              <ul class="preview-changes" id="previewChanges"></ul>
+              <p class="preview-tradeoff" id="previewTradeoff"></p>
+              <div class="preview-actions">
+                <button class="secondary-button" id="discardPreview" type="button">
+                  撤销
+                </button>
+                <button class="secondary-button" id="refinePreview" type="button">
+                  继续微调
+                </button>
+                <button class="primary-button" id="applyRoute" type="button">
+                  应用路线
+                </button>
+              </div>
+            </section>
+
+            <div class="route-undo hidden" id="routeUndo" role="status">
+              <div>
+                <strong>新路线已应用</strong>
+                <span>仍可恢复上一版路线</span>
+              </div>
+              <button type="button" id="undoRoute">撤销</button>
+            </div>
+
+            <div class="timeline-heading">
+              <span>Day 1</span>
+              <h3>路线时间线</h3>
+            </div>
+            <div class="timeline-list" id="timelineList"></div>
+          </div>
         </section>
 
         <section class="view-panel" id="nearby" aria-live="polite">
@@ -313,9 +407,84 @@
             同行
           </button>
         </footer>
+
+        <div class="point-sheet-backdrop hidden" id="pointSheetBackdrop"></div>
+        <section
+          class="point-sheet hidden"
+          id="pointSheet"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pointSheetTitle"
+          aria-describedby="pointRecommendation"
+          tabindex="-1"
+        >
+          <header class="point-sheet-head">
+            <div>
+              <span id="pointOrder">第 1 站</span>
+              <h2 id="pointSheetTitle">路线点</h2>
+              <p id="pointTime">Day 1 · 15:20</p>
+            </div>
+            <button
+              class="sheet-close"
+              id="closePointSheet"
+              type="button"
+              aria-label="关闭路线点详情"
+            >
+              ×
+            </button>
+          </header>
+
+          <div class="community-insight">
+            <div class="community-heading">
+              <div>
+                <span>相似旅行者建议</span>
+                <strong id="communityPercent">68%</strong>
+              </div>
+              <span id="communitySample">126 条记录</span>
+            </div>
+            <p id="pointRecommendation"></p>
+            <dl class="community-evidence">
+              <div>
+                <dt>证据标签</dt>
+                <dd>Demo / 公开记录模拟</dd>
+              </div>
+              <div>
+                <dt>相似原因</dt>
+                <dd id="communitySimilarity"></dd>
+              </div>
+              <div>
+                <dt>常见设置</dt>
+                <dd id="communitySetting"></dd>
+              </div>
+              <div>
+                <dt>不确定性</dt>
+                <dd id="communityUncertainty"></dd>
+              </div>
+            </dl>
+            <button class="source-button" id="showSources" type="button">
+              查看模拟来源说明
+            </button>
+            <p class="source-message hidden" id="sourceMessage" role="status">
+              来源为 Demo 占位说明与公开记录模拟，不会跳转到外部网站。
+            </p>
+          </div>
+
+          <p class="sheet-feedback" id="sheetFeedback" role="status"></p>
+          <div class="point-actions" id="pointSheetActions">
+            <button type="button" data-point-action="lock" aria-pressed="false">
+              锁定点位
+            </button>
+            <button type="button" data-point-action="replace">替换</button>
+            <button type="button" data-point-action="remove">移除</button>
+            <button class="primary" type="button" data-point-action="adopt">
+              采用建议
+            </button>
+          </div>
+        </section>
       </section>
     </main>
 
+    <script src="./route-model.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
